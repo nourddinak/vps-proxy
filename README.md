@@ -26,12 +26,13 @@ A production-ready, dual-protocol forward proxy server managed with **PM2** on L
 Run this single command on your clean VPS as `root` or with `sudo`:
 
 ```bash
-sudo bash <(curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/setup.sh)
+curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/setup.sh | sudo bash
 ```
+*(Or alternatively: `sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/setup.sh)"`)*
 
 > **Note:** If your GitHub repository name or branch differs, you can pass custom environment variables:
 > ```bash
-> sudo REPO_URL="https://github.com/nourddinak/vps-proxy.git" bash <(curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/setup.sh)
+> curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/setup.sh | sudo REPO_URL="https://github.com/nourddinak/vps-proxy.git" bash
 > ```
 
 The installer will automatically:
@@ -55,8 +56,9 @@ The installer will automatically:
 To completely stop the proxy, delete the PM2 task, remove firewall rules, and delete all installed files:
 
 ```bash
-sudo bash <(curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/uninstall.sh)
+curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/uninstall.sh | sudo bash
 ```
+*(Or alternatively: `sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/uninstall.sh)"`)*
 
 ---
 

@@ -37,7 +37,7 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/vps-proxy}"
 
 if [ -f "./package.json" ] && [ -f "./ecosystem.config.cjs" ]; then
   APP_DIR="$(pwd)"
-elif [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/package.json" ]; then
+elif [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/package.json" ]; then
   APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 else
   APP_DIR="$INSTALL_DIR"
