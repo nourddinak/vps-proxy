@@ -44,10 +44,11 @@ export const config = Object.freeze({
   bindHost: process.env.BIND_HOST || '0.0.0.0',
   httpPort: parseInt(process.env.HTTP_PORT || '8080', 10),
   socks5Port: parseInt(process.env.SOCKS5_PORT || '1080', 10),
+  authRequired: process.env.AUTH_REQUIRED !== 'false',
   users: parseUsers(
     process.env.PROXY_USERS,
     process.env.PROXY_USER || 'admin',
-    process.env.PROXY_PASS || 'ProxySecretPass123!'
+    process.env.PROXY_PASS || ''
   ),
   allowedIps: parseAllowedIps(process.env.ALLOWED_IPS),
   logLevel: (process.env.LOG_LEVEL || 'info').toLowerCase(),

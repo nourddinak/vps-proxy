@@ -15,12 +15,16 @@ function startServers() {
     logger.info(`SOCKS5 Proxy listening on ${config.bindHost}:${config.socks5Port}`, 'SOCKS5');
   });
 
+  const authStatus = config.authRequired
+    ? `Enabled (${config.users.size} user${config.users.size === 1 ? '' : 's'})`
+    : 'Disabled (Open proxy / No credentials required)';
+
   const ipWhitelistStatus = config.allowedIps.size > 0
     ? `Restricted to [${Array.from(config.allowedIps).join(', ')}]`
-    : 'Open to all IPs (Credential authentication required)';
+    : (config.authRequired ? 'Open to all IPs (Credentials required)' : 'Open to all IPs (WARNING: Unrestricted)');
 
   logger.info(`Proxy service started [PID ${process.pid}]`, 'SYSTEM');
-  logger.info(`Configured users: ${config.users.size}`, 'SYSTEM');
+  logger.info(`Authentication: ${authStatus}`, 'SYSTEM');
   logger.info(`Access control: ${ipWhitelistStatus}`, 'SYSTEM');
 }
 

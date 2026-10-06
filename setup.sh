@@ -99,13 +99,32 @@ if [ -f .env ]; then
 fi
 
 if [ "$RECONFIGURE" = "true" ]; then
-  CHOSEN_USER=$(prompt_input "Enter proxy username [default: admin]: " "admin")
+  echo ""
+  echo "Authentication Mode:"
+  echo "  1) Password Protected - Username & Password required (Recommended)"
+  echo "  2) Open Proxy         - No username or password required"
+  AUTH_MODE_CHOICE=$(prompt_input "Select authentication mode [1/2, default: 1]: " "1")
 
-  AUTO_PASS=$(openssl rand -hex 12 2>/dev/null || tr -dc A-Za-z0-9 </dev/urandom 2>/dev/null | head -c 24 || echo "SecurePass$(date +%s)")
-  CHOSEN_PASS=$(prompt_input "Enter proxy password [press Enter to auto-generate: ${AUTO_PASS}]: " "$AUTO_PASS")
+  CHOSEN_USER=""
+  CHOSEN_PASS=""
+  AUTH_REQUIRED="true"
+
+  if [ "$AUTH_MODE_CHOICE" = "2" ]; then
+    AUTH_REQUIRED="false"
+    echo "[INFO] Authentication disabled. Proxy will run without credentials."
+  else
+    AUTH_REQUIRED="true"
+    CHOSEN_USER=$(prompt_input "Enter proxy username [default: admin]: " "admin")
+    AUTO_PASS=$(openssl rand -hex 12 2>/dev/null || tr -dc A-Za-z0-9 </dev/urandom 2>/dev/null | head -c 24 || echo "SecurePass$(date +%s)")
+    CHOSEN_PASS=$(prompt_input "Enter proxy password [press Enter to auto-generate: ${AUTO_PASS}]: " "$AUTO_PASS")
+  fi
 
   CHOSEN_HTTP_PORT=$(prompt_input "Enter HTTP/HTTPS proxy port [default: 8080]: " "8080")
   CHOSEN_SOCKS5_PORT=$(prompt_input "Enter SOCKS5 proxy port [default: 1080]: " "1080")
+
+  if [ "$AUTH_REQUIRED" = "false" ]; then
+    echo "[SECURITY TIP] Since authentication is disabled, we strongly advise entering allowed client IPs to prevent internet strangers from abusing your VPS."
+  fi
   CHOSEN_ALLOWED_IPS=$(prompt_input "Enter allowed client IPs (comma-separated, press Enter for all): " "")
 
   cat <<EOF > .env
@@ -114,7 +133,10 @@ BIND_HOST=0.0.0.0
 HTTP_PORT=${CHOSEN_HTTP_PORT}
 SOCKS5_PORT=${CHOSEN_SOCKS5_PORT}
 
-# Primary Authentication Credentials
+# Authentication Mode (true = require credentials, false = open proxy)
+AUTH_REQUIRED=${AUTH_REQUIRED}
+
+# Primary Authentication Credentials (ignored if AUTH_REQUIRED=false)
 PROXY_USER=${CHOSEN_USER}
 PROXY_PASS=${CHOSEN_PASS}
 
@@ -203,8 +225,9 @@ pm2 save
 
 # 8. Detection and Summary
 SERVER_IP=$(curl -s --max-time 3 https://api.ipify.org || curl -s --max-time 3 https://ifconfig.me || echo "YOUR_VPS_IP")
-PROXY_USER=$(grep '^PROXY_USER=' .env | cut -d'=' -f2 | tr -d '\r' || echo "admin")
-PROXY_PASS=$(grep '^PROXY_PASS=' .env | cut -d'=' -f2 | tr -d '\r' || echo "password")
+AUTH_REQUIRED=$(grep '^AUTH_REQUIRED=' .env | cut -d'=' -f2 | tr -d '\r' || echo "true")
+PROXY_USER=$(grep '^PROXY_USER=' .env | cut -d'=' -f2 | tr -d '\r' || echo "")
+PROXY_PASS=$(grep '^PROXY_PASS=' .env | cut -d'=' -f2 | tr -d '\r' || echo "")
 
 echo ""
 echo "=================================================="
@@ -214,30 +237,55 @@ echo "Status: Running via PM2"
 echo ""
 echo "Connection Details:"
 echo "  VPS Public IP : ${SERVER_IP}"
-echo "  Username      : ${PROXY_USER}"
-echo "  Password      : ${PROXY_PASS}"
-echo ""
-echo "Proxy Endpoints & Full Links:"
-echo "  HTTP/HTTPS Link : http://${PROXY_USER}:${PROXY_PASS}@${SERVER_IP}:${HTTP_PORT}"
-echo "  SOCKS5 Link     : socks5://${PROXY_USER}:${PROXY_PASS}@${SERVER_IP}:${SOCKS5_PORT}"
-echo "  Telegram 1-Click: https://t.me/socks?server=${SERVER_IP}&port=${SOCKS5_PORT}&user=${PROXY_USER}&pass=${PROXY_PASS}"
-echo ""
-echo "Mobile Wi-Fi Setup (iOS / Android):"
-echo "  Configure Proxy : Manual"
-echo "  Server / Host   : ${SERVER_IP}"
-echo "  Port            : ${HTTP_PORT}"
-echo "  Authentication  : ON"
-echo "  Username        : ${PROXY_USER}"
-echo "  Password        : ${PROXY_PASS}"
-echo ""
-echo "Testing commands:"
-echo "  Linux / macOS Terminal:"
-echo "    HTTP   : curl -x http://${SERVER_IP}:${HTTP_PORT} -U \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
-echo "    SOCKS5 : curl --socks5 ${SERVER_IP}:${SOCKS5_PORT} --proxy-user \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
-echo ""
-echo "  Windows PowerShell (use curl.exe with quotes):"
-echo "    HTTP   : curl.exe -x http://${SERVER_IP}:${HTTP_PORT} -U \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
-echo "    SOCKS5 : curl.exe --socks5 ${SERVER_IP}:${SOCKS5_PORT} --proxy-user \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
+if [ "$AUTH_REQUIRED" = "false" ]; then
+  echo "  Authentication: Disabled (Open Proxy - No username/password required)"
+  echo ""
+  echo "Proxy Endpoints & Full Links:"
+  echo "  HTTP/HTTPS Link : http://${SERVER_IP}:${HTTP_PORT}"
+  echo "  SOCKS5 Link     : socks5://${SERVER_IP}:${SOCKS5_PORT}"
+  echo "  Telegram 1-Click: https://t.me/socks?server=${SERVER_IP}&port=${SOCKS5_PORT}"
+  echo ""
+  echo "Mobile Wi-Fi Setup (iOS / Android):"
+  echo "  Configure Proxy : Manual"
+  echo "  Server / Host   : ${SERVER_IP}"
+  echo "  Port            : ${HTTP_PORT}"
+  echo "  Authentication  : OFF (Leave username and password empty)"
+  echo ""
+  echo "Testing commands:"
+  echo "  Linux / macOS Terminal:"
+  echo "    HTTP   : curl -x http://${SERVER_IP}:${HTTP_PORT} https://api.ipify.org"
+  echo "    SOCKS5 : curl --socks5 ${SERVER_IP}:${SOCKS5_PORT} https://api.ipify.org"
+  echo ""
+  echo "  Windows PowerShell:"
+  echo "    HTTP   : curl.exe -x http://${SERVER_IP}:${HTTP_PORT} https://api.ipify.org"
+  echo "    SOCKS5 : curl.exe --socks5 ${SERVER_IP}:${SOCKS5_PORT} https://api.ipify.org"
+else
+  echo "  Authentication: Enabled (Credentials required)"
+  echo "  Username      : ${PROXY_USER}"
+  echo "  Password      : ${PROXY_PASS}"
+  echo ""
+  echo "Proxy Endpoints & Full Links:"
+  echo "  HTTP/HTTPS Link : http://${PROXY_USER}:${PROXY_PASS}@${SERVER_IP}:${HTTP_PORT}"
+  echo "  SOCKS5 Link     : socks5://${PROXY_USER}:${PROXY_PASS}@${SERVER_IP}:${SOCKS5_PORT}"
+  echo "  Telegram 1-Click: https://t.me/socks?server=${SERVER_IP}&port=${SOCKS5_PORT}&user=${PROXY_USER}&pass=${PROXY_PASS}"
+  echo ""
+  echo "Mobile Wi-Fi Setup (iOS / Android):"
+  echo "  Configure Proxy : Manual"
+  echo "  Server / Host   : ${SERVER_IP}"
+  echo "  Port            : ${HTTP_PORT}"
+  echo "  Authentication  : ON"
+  echo "  Username        : ${PROXY_USER}"
+  echo "  Password        : ${PROXY_PASS}"
+  echo ""
+  echo "Testing commands:"
+  echo "  Linux / macOS Terminal:"
+  echo "    HTTP   : curl -x http://${SERVER_IP}:${HTTP_PORT} -U \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
+  echo "    SOCKS5 : curl --socks5 ${SERVER_IP}:${SOCKS5_PORT} --proxy-user \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
+  echo ""
+  echo "  Windows PowerShell (use curl.exe with quotes):"
+  echo "    HTTP   : curl.exe -x http://${SERVER_IP}:${HTTP_PORT} -U \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
+  echo "    SOCKS5 : curl.exe --socks5 ${SERVER_IP}:${SOCKS5_PORT} --proxy-user \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
+fi
 echo ""
 echo "Important for Oracle Cloud / AWS users:"
 echo "  If testing hangs or times out, ensure ports ${HTTP_PORT} and ${SOCKS5_PORT}"

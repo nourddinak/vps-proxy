@@ -114,6 +114,7 @@ pm2 save
 | `BIND_HOST` | `0.0.0.0` | IP interface to listen on (`0.0.0.0` for all interfaces) |
 | `HTTP_PORT` | `8080` | Port for HTTP and HTTPS CONNECT forward proxy |
 | `SOCKS5_PORT` | `1080` | Port for RFC 1928 / RFC 1929 SOCKS5 proxy |
+| `AUTH_REQUIRED` | `true` | Set to `false` for open proxy (no username/password needed) |
 | `PROXY_USER` | `admin` | Default username for authentication |
 | `PROXY_PASS` | `ChangeThisSecurePassword123!` | Default password for authentication |
 | `PROXY_USERS` | *empty* | Optional multi-user list: `user1:pass1,user2:pass2` |

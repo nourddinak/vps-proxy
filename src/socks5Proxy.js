@@ -1,8 +1,10 @@
 import net from 'node:net';
+import { config } from './config.js';
 import { logger } from './logger.js';
 import { isIpAllowed, normalizeIp, validateCredentials } from './auth.js';
 
 const SOCKS_VERSION = 0x05;
+const AUTH_NO_AUTH = 0x00;
 const AUTH_USER_PASS = 0x02;
 const NO_ACCEPTABLE_METHODS = 0xff;
 
@@ -56,23 +58,44 @@ export function createSocks5ProxyServer() {
           const methods = buffer.subarray(2, 2 + nMethods);
           buffer = buffer.subarray(2 + nMethods);
 
-          let hasUserPass = false;
-          for (let i = 0; i < methods.length; i++) {
-            if (methods[i] === AUTH_USER_PASS) {
-              hasUserPass = true;
-              break;
+          if (!config.authRequired) {
+            let hasNoAuth = false;
+            for (let i = 0; i < methods.length; i++) {
+              if (methods[i] === AUTH_NO_AUTH) {
+                hasNoAuth = true;
+                break;
+              }
             }
-          }
 
-          if (hasUserPass) {
-            // Tell client we require Username/Password (RFC 1929)
-            clientSocket.write(Buffer.from([SOCKS_VERSION, AUTH_USER_PASS]));
-            state = 'AUTH';
+            if (hasNoAuth) {
+              clientSocket.write(Buffer.from([SOCKS_VERSION, AUTH_NO_AUTH]));
+              authenticatedUser = 'anonymous';
+              state = 'REQUEST';
+            } else {
+              logger.warn(`Client did not offer no-auth method from ${clientIp}`, 'SOCKS5');
+              clientSocket.write(Buffer.from([SOCKS_VERSION, NO_ACCEPTABLE_METHODS]));
+              clientSocket.destroy();
+              return;
+            }
           } else {
-            logger.warn(`Client did not offer username/password auth from ${clientIp}`, 'SOCKS5');
-            clientSocket.write(Buffer.from([SOCKS_VERSION, NO_ACCEPTABLE_METHODS]));
-            clientSocket.destroy();
-            return;
+            let hasUserPass = false;
+            for (let i = 0; i < methods.length; i++) {
+              if (methods[i] === AUTH_USER_PASS) {
+                hasUserPass = true;
+                break;
+              }
+            }
+
+            if (hasUserPass) {
+              // Tell client we require Username/Password (RFC 1929)
+              clientSocket.write(Buffer.from([SOCKS_VERSION, AUTH_USER_PASS]));
+              state = 'AUTH';
+            } else {
+              logger.warn(`Client did not offer username/password auth from ${clientIp}`, 'SOCKS5');
+              clientSocket.write(Buffer.from([SOCKS_VERSION, NO_ACCEPTABLE_METHODS]));
+              clientSocket.destroy();
+              return;
+            }
           }
         }
 

@@ -16,23 +16,27 @@ export function createHttpProxyServer() {
       return res.end('403 Forbidden: IP address not allowed\n');
     }
 
-    // 2. Check Proxy Authentication
-    const authHeader = req.headers['proxy-authorization'];
-    const creds = parseBasicAuthHeader(authHeader);
-    if (!creds || !validateCredentials(creds.username, creds.password)) {
-      logger.warn(`Unauthorized HTTP request from ${clientIp} for ${req.url}`, 'HTTP');
-      res.writeHead(407, {
-        'Proxy-Authenticate': 'Basic realm="VPS Proxy"',
-        'Content-Type': 'text/plain',
-        Connection: 'close',
-      });
-      return res.end('407 Proxy Authentication Required\n');
+    // 2. Check Proxy Authentication if enabled
+    let username = 'anonymous';
+    if (config.authRequired) {
+      const authHeader = req.headers['proxy-authorization'];
+      const creds = parseBasicAuthHeader(authHeader);
+      if (!creds || !validateCredentials(creds.username, creds.password)) {
+        logger.warn(`Unauthorized HTTP request from ${clientIp} for ${req.url}`, 'HTTP');
+        res.writeHead(407, {
+          'Proxy-Authenticate': 'Basic realm="VPS Proxy"',
+          'Content-Type': 'text/plain',
+          Connection: 'close',
+        });
+        return res.end('407 Proxy Authentication Required\n');
+      }
+      username = creds.username;
     }
 
     // 3. Forward regular HTTP request
     try {
       const parsedUrl = new url.URL(req.url.startsWith('http') ? req.url : `http://${req.headers.host}${req.url}`);
-      logger.info(`${req.method} ${parsedUrl.hostname}${parsedUrl.pathname} (User: ${creds.username}, IP: ${clientIp})`, 'HTTP');
+      logger.info(`${req.method} ${parsedUrl.hostname}${parsedUrl.pathname} (User: ${username}, IP: ${clientIp})`, 'HTTP');
 
       const forwardHeaders = { ...req.headers };
       delete forwardHeaders['proxy-authorization'];
@@ -80,24 +84,28 @@ export function createHttpProxyServer() {
       return clientSocket.destroy();
     }
 
-    // 2. Check Proxy Authentication
-    const authHeader = req.headers['proxy-authorization'];
-    const creds = parseBasicAuthHeader(authHeader);
-    if (!creds || !validateCredentials(creds.username, creds.password)) {
-      logger.warn(`Unauthorized CONNECT request from ${clientIp} for ${req.url}`, 'HTTP');
-      clientSocket.write(
-        'HTTP/1.1 407 Proxy Authentication Required\r\n' +
-        'Proxy-Authenticate: Basic realm="VPS Proxy"\r\n' +
-        'Connection: close\r\n\r\n'
-      );
-      return clientSocket.destroy();
+    // 2. Check Proxy Authentication if enabled
+    let username = 'anonymous';
+    if (config.authRequired) {
+      const authHeader = req.headers['proxy-authorization'];
+      const creds = parseBasicAuthHeader(authHeader);
+      if (!creds || !validateCredentials(creds.username, creds.password)) {
+        logger.warn(`Unauthorized CONNECT request from ${clientIp} for ${req.url}`, 'HTTP');
+        clientSocket.write(
+          'HTTP/1.1 407 Proxy Authentication Required\r\n' +
+          'Proxy-Authenticate: Basic realm="VPS Proxy"\r\n' +
+          'Connection: close\r\n\r\n'
+        );
+        return clientSocket.destroy();
+      }
+      username = creds.username;
     }
 
     // 3. Connect to target endpoint
     const [targetHost, targetPortStr] = req.url.split(':');
     const targetPort = parseInt(targetPortStr, 10) || 443;
 
-    logger.info(`CONNECT ${targetHost}:${targetPort} (User: ${creds.username}, IP: ${clientIp})`, 'HTTP');
+    logger.info(`CONNECT ${targetHost}:${targetPort} (User: ${username}, IP: ${clientIp})`, 'HTTP');
 
     const targetSocket = net.connect(targetPort, targetHost, () => {
       clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
