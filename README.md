@@ -201,8 +201,43 @@ print(response.json())
 - Go to **Settings** -> **Advanced** -> **Connection type** -> **Use custom proxy**
 - Select **SOCKS5**
 - Host: `YOUR_VPS_IP`
-- Port: `1080`
+- Port: `1080` (or your configured SOCKS5 port)
 - Username & Password: As configured in `.env`
+
+---
+
+### Mobile Devices (iOS & Android Wi-Fi Proxy)
+
+#### iPhone & iPad (Native iOS Wi-Fi Settings)
+iOS has built-in support for authenticated HTTP proxies:
+1. Open **Settings** &rarr; **Wi-Fi**.
+2. Tap the blue **(i)** info icon next to your connected Wi-Fi network.
+3. Scroll down to the bottom and tap **Configure Proxy**.
+4. Select **Manual**.
+5. Fill in the details:
+   - **Server**: `YOUR_VPS_IP`
+   - **Port**: Your configured HTTP port (e.g., `4001` or `8080`)
+   - **Authentication**: Toggle **ON**
+   - **Username**: Your proxy username
+   - **Password**: Your proxy password
+6. Tap **Save** in the top right.
+7. Open Safari and browse to `https://api.ipify.org` &mdash; your connection will now show your VPS IP!
+
+#### Android (Native Wi-Fi Settings)
+1. Open **Settings** &rarr; **Network & internet** &rarr; **Internet** (or **Wi-Fi**).
+2. Tap the **gear icon** next to your active Wi-Fi network &rarr; tap the **Pencil / Edit icon**.
+3. Expand **Advanced options** &rarr; under **Proxy**, choose **Manual**.
+4. Fill in:
+   - **Proxy hostname**: `YOUR_VPS_IP`
+   - **Proxy port**: Your configured HTTP port (e.g., `4001` or `8080`)
+   - **Bypass proxy for**: Leave default (or empty)
+5. Tap **Save**.
+6. When you open Chrome, Android will display a sign-in dialogue (*"Sign in to proxy server"*). Enter your configured username and password.
+
+#### System-Wide & Mobile Data (4G / 5G / Wi-Fi)
+If you want to use the proxy across all phone apps (and on cellular data), use a lightweight proxy client:
+- **iOS**: **Shadowrocket** or **Potatso Lite** (App Store) &rarr; Add SOCKS5 or HTTP proxy with your VPS IP, port, and credentials.
+- **Android**: **Super Proxy** or **v2rayNG** (Play Store) &rarr; Select `HTTP` or `SOCKS5`, enter VPS IP, port, username, password, and tap Start.
 
 ---
 
