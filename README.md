@@ -124,17 +124,28 @@ pm2 save
 
 ## Testing & Verifying Connections
 
-Replace `YOUR_VPS_IP`, `admin`, and `password` with your actual settings:
+Replace `YOUR_VPS_IP`, `username`, and `password` with your actual settings:
 
-### 1. Test HTTP/HTTPS Proxy via cURL
+### Linux / macOS Terminal:
 ```bash
-curl -x http://admin:password@YOUR_VPS_IP:8080 https://api.ipify.org?format=json
+# Test HTTP/HTTPS Proxy
+curl -x http://YOUR_VPS_IP:8080 -U "username:password" https://api.ipify.org?format=json
+
+# Test SOCKS5 Proxy
+curl --socks5 YOUR_VPS_IP:1080 --proxy-user "username:password" https://api.ipify.org?format=json
 ```
 
-### 2. Test SOCKS5 Proxy via cURL
-```bash
-curl --socks5 admin:password@YOUR_VPS_IP:1080 https://api.ipify.org?format=json
+### Windows PowerShell (use `curl.exe` to bypass PowerShell's Invoke-WebRequest):
+```powershell
+# Test HTTP/HTTPS Proxy
+curl.exe -x http://YOUR_VPS_IP:8080 -U "username:password" https://api.ipify.org?format=json
+
+# Test SOCKS5 Proxy
+curl.exe --socks5 YOUR_VPS_IP:1080 --proxy-user "username:password" https://api.ipify.org?format=json
 ```
+
+> **Note on Passwords with Special Characters (e.g. `@`, `#`, `%`):**
+> Using `-U "user:pass"` and `--proxy-user "user:pass"` handles special characters safely without URL syntax issues.
 
 If successful, the response will display your **VPS public IP address**.
 

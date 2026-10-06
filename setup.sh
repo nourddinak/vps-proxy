@@ -168,7 +168,7 @@ echo "[INFO] PM2 version: $(pm2 -v)"
 echo "[INFO] Installing proxy project dependencies..."
 npm install --omit=dev
 
-# 5. Configure Firewall (UFW if enabled)
+# 5. Configure Firewall (UFW & iptables)
 HTTP_PORT=$(grep '^HTTP_PORT=' .env | cut -d'=' -f2 | tr -d '\r' || echo "8080")
 SOCKS5_PORT=$(grep '^SOCKS5_PORT=' .env | cut -d'=' -f2 | tr -d '\r' || echo "1080")
 
@@ -178,6 +178,16 @@ if command -v ufw >/dev/null 2>&1; then
     ufw allow "${HTTP_PORT}/tcp" comment "VPS HTTP Proxy"
     ufw allow "${SOCKS5_PORT}/tcp" comment "VPS SOCKS5 Proxy"
     ufw reload
+  fi
+fi
+
+# Insert iptables rules (essential on Oracle Cloud and CentOS/Debian images with default reject rules)
+if command -v iptables >/dev/null 2>&1; then
+  echo "[INFO] Ensuring iptables ACCEPT rules for port ${HTTP_PORT}/tcp and ${SOCKS5_PORT}/tcp..."
+  iptables -I INPUT -p tcp --dport "${HTTP_PORT}" -j ACCEPT || true
+  iptables -I INPUT -p tcp --dport "${SOCKS5_PORT}" -j ACCEPT || true
+  if command -v netfilter-persistent >/dev/null 2>&1; then
+    netfilter-persistent save 2>/dev/null || true
   fi
 fi
 
@@ -208,12 +218,21 @@ echo "  Username      : ${PROXY_USER}"
 echo "  Password      : ${PROXY_PASS}"
 echo ""
 echo "Endpoints:"
-echo "  HTTP/HTTPS    : http://${PROXY_USER}:${PROXY_PASS}@${SERVER_IP}:${HTTP_PORT}"
-echo "  SOCKS5        : socks5://${PROXY_USER}:${PROXY_PASS}@${SERVER_IP}:${SOCKS5_PORT}"
+echo "  HTTP/HTTPS    : http://${SERVER_IP}:${HTTP_PORT}"
+echo "  SOCKS5        : socks5://${SERVER_IP}:${SOCKS5_PORT}"
 echo ""
-echo "Testing commands (run from your local machine):"
-echo "  HTTP Proxy    : curl -x http://${PROXY_USER}:${PROXY_PASS}@${SERVER_IP}:${HTTP_PORT} https://api.ipify.org"
-echo "  SOCKS5 Proxy  : curl --socks5 ${PROXY_USER}:${PROXY_PASS}@${SERVER_IP}:${SOCKS5_PORT} https://api.ipify.org"
+echo "Testing commands:"
+echo "  Linux / macOS Terminal:"
+echo "    HTTP   : curl -x http://${SERVER_IP}:${HTTP_PORT} -U \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
+echo "    SOCKS5 : curl --socks5 ${SERVER_IP}:${SOCKS5_PORT} --proxy-user \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
+echo ""
+echo "  Windows PowerShell (use curl.exe with quotes):"
+echo "    HTTP   : curl.exe -x http://${SERVER_IP}:${HTTP_PORT} -U \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
+echo "    SOCKS5 : curl.exe --socks5 ${SERVER_IP}:${SOCKS5_PORT} --proxy-user \"${PROXY_USER}:${PROXY_PASS}\" https://api.ipify.org"
+echo ""
+echo "Important for Oracle Cloud / AWS users:"
+echo "  If testing hangs or times out, ensure ports ${HTTP_PORT} and ${SOCKS5_PORT}"
+echo "  are allowed in your Cloud Console Security List / Ingress Rules (0.0.0.0/0)!"
 echo ""
 echo "PM2 Commands:"
 echo "  Check Status  : pm2 status"

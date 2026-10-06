@@ -42,14 +42,22 @@ if command -v pm2 >/dev/null 2>&1; then
   echo "[INFO] PM2 process removed."
 fi
 
-# 2. Remove UFW firewall rules
+# 2. Remove UFW and iptables firewall rules
 if command -v ufw >/dev/null 2>&1; then
   if ufw status | grep -qw "active"; then
     echo "[INFO] Removing UFW firewall rules for port ${HTTP_PORT} and ${SOCKS5_PORT}..."
     ufw delete allow "${HTTP_PORT}/tcp" 2>/dev/null || true
     ufw delete allow "${SOCKS5_PORT}/tcp" 2>/dev/null || true
     ufw reload 2>/dev/null || true
-    echo "[INFO] Firewall rules removed."
+    echo "[INFO] UFW firewall rules removed."
+  fi
+fi
+
+if command -v iptables >/dev/null 2>&1; then
+  iptables -D INPUT -p tcp --dport "${HTTP_PORT}" -j ACCEPT 2>/dev/null || true
+  iptables -D INPUT -p tcp --dport "${SOCKS5_PORT}" -j ACCEPT 2>/dev/null || true
+  if command -v netfilter-persistent >/dev/null 2>&1; then
+    netfilter-persistent save 2>/dev/null || true
   fi
 fi
 
