@@ -1,0 +1,25 @@
+{
+  "name": "vps-proxy",
+  "version": "1.0.0",
+  "description": "High-performance dual-protocol (HTTP/HTTPS CONNECT and SOCKS5) forward proxy server managed with PM2",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node test/test-client.js"
+  },
+  "keywords": [
+    "proxy",
+    "socks5",
+    "http-proxy",
+    "https-proxy",
+    "pm2",
+    "vps"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  }
+}

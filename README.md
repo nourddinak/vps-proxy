@@ -1,0 +1,202 @@
+# VPS Dual-Protocol Proxy (HTTP/HTTPS CONNECT & SOCKS5)
+
+A production-ready, dual-protocol forward proxy server managed with **PM2** on Linux VPS instances.
+
+## Features
+
+- **Dual-Protocol Support**:
+  - **HTTP/HTTPS CONNECT Proxy** (Default Port: `8080`): Handles regular HTTP requests and encrypted HTTPS tunneling with standard `407 Proxy Authentication Required` challenges.
+  - **SOCKS5 Proxy** (Default Port: `1080`): Fully compliant with RFC 1928 and RFC 1929 username/password authentication (Method `0x02`), routing raw TCP streams to IPv4, domain names, and IPv6.
+- **Access Control & Security**:
+  - Single and multi-user credential authentication via `.env`.
+  - Constant-time password verification preventing timing side-channel attacks.
+  - Optional client IP whitelisting (`ALLOWED_IPS`).
+- **PM2 Process Management**:
+  - Auto-restart on unexpected crashes or memory leaks (`max_memory_restart: 300M`).
+  - Persistent background execution surviving VPS system reboots (`pm2 startup`).
+  - Unified log aggregation (`logs/out.log` and `logs/err.log`).
+- **Turnkey Automation**:
+  - 1-command installer script for Ubuntu/Debian/RHEL VPS servers.
+  - 1-command uninstaller script that completely removes PM2 tasks, firewall rules, and files.
+
+---
+
+## One-Line Quick Install
+
+Run this single command on your clean VPS as `root` or with `sudo`:
+
+```bash
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/setup.sh)
+```
+
+> **Note:** If your GitHub repository name or branch differs, you can pass custom environment variables:
+> ```bash
+> sudo REPO_URL="https://github.com/nourddinak/vps-proxy.git" bash <(curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/setup.sh)
+> ```
+
+The installer will automatically:
+1. Install Node.js LTS (v20) and PM2 if not already present.
+2. Clone the repository into `/opt/vps-proxy`.
+3. Interactively prompt you for:
+   - **Username** (defaults to `admin`)
+   - **Password** (allows custom password or auto-generates a secure 24-character random password)
+   - **HTTP & SOCKS5 Ports** (defaults to `8080` and `1080`)
+   - **Allowed Client IPs** (optional whitelist or open to all)
+4. Automatically write and secure your `.env` file (`chmod 600 .env`).
+5. Install production dependencies (`npm install --omit=dev`).
+6. Open ports `8080/tcp` and `1080/tcp` in `ufw` firewall (if enabled).
+7. Start the proxy via PM2 and register systemd persistence across reboots.
+8. Print your active VPS public IP, configured credentials, and sample `curl` test commands.
+
+---
+
+## One-Line Complete Uninstall
+
+To completely stop the proxy, delete the PM2 task, remove firewall rules, and delete all installed files:
+
+```bash
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/nourddinak/vps-proxy/main/uninstall.sh)
+```
+
+---
+
+## Alternative: Manual Clone & Setup
+
+If you prefer to clone and configure the repository manually:
+
+```bash
+# 1. Clone repository
+git clone https://github.com/nourddinak/vps-proxy.git /opt/vps-proxy
+cd /opt/vps-proxy
+
+# 2. Make scripts executable
+chmod +x setup.sh uninstall.sh
+
+# 3. Run setup
+sudo ./setup.sh
+```
+
+Or step-by-step without the setup script:
+
+```bash
+# 1. Install Node.js (v18+) and PM2
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+sudo apt-get install -y nodejs
+sudo npm install -g pm2
+
+# 2. Configure credentials
+cp .env.example .env
+nano .env   # Customize PROXY_USER and PROXY_PASS
+
+# 3. Install dependencies
+npm install --omit=dev
+
+# 4. Open firewall ports (if using UFW)
+sudo ufw allow 8080/tcp comment "HTTP Proxy"
+sudo ufw allow 1080/tcp comment "SOCKS5 Proxy"
+
+# 5. Start with PM2
+pm2 start ecosystem.config.cjs
+
+# 6. Save PM2 state for automatic reboot persistence
+pm2 startup
+pm2 save
+```
+
+---
+
+## Configuration (`.env`)
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `BIND_HOST` | `0.0.0.0` | IP interface to listen on (`0.0.0.0` for all interfaces) |
+| `HTTP_PORT` | `8080` | Port for HTTP and HTTPS CONNECT forward proxy |
+| `SOCKS5_PORT` | `1080` | Port for RFC 1928 / RFC 1929 SOCKS5 proxy |
+| `PROXY_USER` | `admin` | Default username for authentication |
+| `PROXY_PASS` | `ChangeThisSecurePassword123!` | Default password for authentication |
+| `PROXY_USERS` | *empty* | Optional multi-user list: `user1:pass1,user2:pass2` |
+| `ALLOWED_IPS` | *empty* | Optional comma-separated IP whitelist (e.g. `198.51.100.5,203.0.113.12`) |
+| `LOG_LEVEL` | `info` | Logging verbosity: `info`, `debug`, `error`, `silent` |
+
+---
+
+## Testing & Verifying Connections
+
+Replace `YOUR_VPS_IP`, `admin`, and `password` with your actual settings:
+
+### 1. Test HTTP/HTTPS Proxy via cURL
+```bash
+curl -x http://admin:password@YOUR_VPS_IP:8080 https://api.ipify.org?format=json
+```
+
+### 2. Test SOCKS5 Proxy via cURL
+```bash
+curl --socks5 admin:password@YOUR_VPS_IP:1080 https://api.ipify.org?format=json
+```
+
+If successful, the response will display your **VPS public IP address**.
+
+---
+
+## PM2 Operational Commands
+
+```bash
+# Check service status and CPU/memory usage
+pm2 status
+
+# Stream live real-time connection logs
+pm2 logs vps-proxy
+
+# View recent log history
+pm2 logs vps-proxy --lines 100
+
+# Restart the proxy (e.g., after editing .env)
+pm2 restart vps-proxy
+
+# Stop the proxy
+pm2 stop vps-proxy
+
+# Delete the PM2 process registration
+pm2 delete vps-proxy
+```
+
+---
+
+## Client Configuration Guide
+
+### Browser Setup (Chrome / Firefox / Edge)
+Use an extension like **Proxy SwitchyOmega** or **FoxyProxy**:
+- **Protocol**: HTTP or SOCKS5
+- **Server**: `YOUR_VPS_IP`
+- **Port**: `8080` (for HTTP) or `1080` (for SOCKS5)
+- **Authentication**: Enable username and password
+
+### Python (`requests`)
+```python
+import requests
+
+proxies = {
+    'http': 'http://admin:password@YOUR_VPS_IP:8080',
+    'https': 'http://admin:password@YOUR_VPS_IP:8080',
+}
+
+response = requests.get('https://api.ipify.org?format=json', proxies=proxies)
+print(response.json())
+```
+
+### Telegram Desktop / Mobile
+- Go to **Settings** -> **Advanced** -> **Connection type** -> **Use custom proxy**
+- Select **SOCKS5**
+- Host: `YOUR_VPS_IP`
+- Port: `1080`
+- Username & Password: As configured in `.env`
+
+---
+
+## Cloud Provider Firewall Reminder
+
+In addition to `ufw` on your VPS, remember to check your cloud hosting provider's firewall / Security Group rules:
+- **Hetzner Cloud**: Add inbound rules for TCP `8080` and `1080` under Firewall Settings.
+- **AWS EC2**: Add Inbound Rule under Security Group: Custom TCP, Port Range `8080` and `1080`, Source `0.0.0.0/0` (or your IP).
+- **DigitalOcean**: Add Inbound Rule under Cloud Firewalls: TCP `8080` and `1080`.
+- **Linode / Vultr / OVH**: Enable ports in Cloud Firewall if applied.
